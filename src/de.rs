@@ -9,7 +9,7 @@ use syn::{
 };
 
 pub fn derive(input: &DeriveInput, enumeration: &DataEnum) -> Result<TokenStream> {
-    let tag_type = attr::tag_type(&input.attrs, &enumeration)?;
+    let tag_type = attr::tag_type(&input.attrs, enumeration)?;
     match &tag_type {
         TagType::External => deserialize_external(input, enumeration),
         TagType::Adjacent { tag, content } => {
@@ -34,14 +34,10 @@ struct EnumVariants {
 
 impl EnumVariants {
     fn new(ident: &Ident, enumeration: &DataEnum) -> Result<EnumVariants> {
-        let (unit_variants, struct_variants): (Vec<_>, Vec<_>) =
-            enumeration.variants.iter().partition(|v| {
-                if let Fields::Unit = &v.fields {
-                    true
-                } else {
-                    false
-                }
-            });
+        let (unit_variants, struct_variants): (Vec<_>, Vec<_>) = enumeration
+            .variants
+            .iter()
+            .partition(|v| matches!(&v.fields, Fields::Unit));
         let struct_variant_names = struct_variants
             .iter()
             .cloned()
@@ -100,10 +96,11 @@ pub fn deserialize_internal(
         ..
     } = EnumVariants::new(ident, enumeration)?;
 
-    let ex = quote!(miniserde::export);
+    let ex = quote!(std::prelude::v1);
 
     Ok(quote! {
         const _: () = {
+            #[repr(transparent)]
             struct __Visitor {
                 __out: #ex::Option<#ident>,
             }
@@ -141,7 +138,7 @@ pub fn deserialize_internal(
             #(#structs)*
 
             impl<'a> miniserde::de::Map for __State<'a> {
-                fn key(&mut self, k: &#ex::str) -> miniserde::Result<&mut dyn miniserde::de::Visitor> {
+                fn key(&mut self, k: &core::primitive::str) -> miniserde::Result<&mut dyn miniserde::de::Visitor> {
                     if k == #tag {
                         return Ok(<String as miniserde::Deserialize>::begin(&mut self.__tag));
                     }
@@ -196,10 +193,11 @@ pub fn deserialize_adjacent(
         ..
     } = EnumVariants::new(ident, enumeration)?;
 
-    let ex = quote!(miniserde::export);
+    let ex = quote!(std::prelude::v1);
 
     Ok(quote! {
         const _: () = {
+            #[repr(transparent)]
             struct __Visitor {
                 __out: #ex::Option<#ident>,
             }
@@ -235,7 +233,7 @@ pub fn deserialize_adjacent(
             #(#structs)*
 
             impl<'a> miniserde::de::Map for __State<'a> {
-                fn key(&mut self, k: &#ex::str) -> miniserde::Result<&mut dyn miniserde::de::Visitor> {
+                fn key(&mut self, k: &core::primitive::str) -> miniserde::Result<&mut dyn miniserde::de::Visitor> {
                     match k {
                         #tag => Ok(<String as miniserde::Deserialize>::begin(&mut self.__tag)),
                         #content => {
@@ -289,7 +287,7 @@ pub fn deserialize_external(input: &DeriveInput, enumeration: &DataEnum) -> Resu
         ..
     } = EnumVariants::new(ident, enumeration)?;
 
-    let ex = quote!(miniserde::export);
+    let ex = quote!(std::prelude::v1);
 
     Ok(quote! {
         const _: () = {
@@ -337,7 +335,7 @@ pub fn deserialize_external(input: &DeriveInput, enumeration: &DataEnum) -> Resu
             #(#structs)*
 
             impl #wrapper_impl_generics miniserde::de::Map for __State #wrapper_ty_generics #bounded_where_clause {
-                fn key(&mut self, k: &#ex::str) -> miniserde::Result<&mut dyn miniserde::de::Visitor> {
+                fn key(&mut self, k: &core::primitive::str) -> miniserde::Result<&mut dyn miniserde::de::Visitor> {
                     match k {
                         #(
                             #struct_variant_names => #ex::Ok(#struct_names::begin(&mut self.#struct_variant_idents)),
@@ -426,7 +424,7 @@ pub fn unnamed_fields_as_struct(
             #(#field_idents: #field_types,)*
         }
     };
-    let ex = quote!(miniserde::export);
+    let ex = quote!(std::prelude::v1);
     let de_impl = if fields.unnamed.len() == 1 {
         let ty = field_types[0];
         quote! {
@@ -439,6 +437,7 @@ pub fn unnamed_fields_as_struct(
     } else {
         let index = 0usize..;
         quote! {
+            #[repr(transparent)]
             struct __Visitor {
                 __out: #ex::Option<#ident>,
             }

@@ -8,7 +8,7 @@ use syn::{parse_quote, DataEnum, DeriveInput, Fields, FieldsNamed, FieldsUnnamed
 pub fn derive(input: &DeriveInput, enumeration: &DataEnum) -> Result<TokenStream> {
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
     let ident = &input.ident;
-    let tag_type = attr::tag_type(&input.attrs, &enumeration)?;
+    let tag_type = attr::tag_type(&input.attrs, enumeration)?;
     let names = enumeration
         .variants
         .iter()
@@ -28,7 +28,7 @@ pub fn derive(input: &DeriveInput, enumeration: &DataEnum) -> Result<TokenStream
                     }
                 }
                 Fields::Named(fields) => {
-                    let implementation = serialize_named(input, &fields, name, &tag_type)?;
+                    let implementation = serialize_named(input, fields, name, &tag_type)?;
                     let field_ident = fields
                         .named
                         .iter()
@@ -75,27 +75,27 @@ fn serialize_unit(variant_name: &str, tag_type: &TagType) -> Result<TokenStream>
     Ok(if let TagType::Internal(tag) = &tag_type {
         quote! {
             struct __Map {
-                state: miniserde::export::usize,
+                state: usize,
             }
 
             impl miniserde::ser::Map for __Map {
-                fn next(&mut self) -> miniserde::export::Option<(miniserde::export::Cow<miniserde::export::str>, &dyn miniserde::Serialize)> {
+                fn next(&mut self) -> std::prelude::v1::Option<(std::borrow::Cow<core::primitive::str>, &dyn miniserde::Serialize)> {
                     let __state = self.state;
                     self.state = __state + 1;
                     match __state {
-                        0 => miniserde::export::Some((
-                            miniserde::export::Cow::Borrowed(#tag),
+                        0 => std::prelude::v1::Some((
+                            std::borrow::Cow::Borrowed(#tag),
                             &#variant_name,
                         )),
-                        _ => miniserde::export::None,
+                        _ => std::prelude::v1::None,
                     }
                 }
             }
 
-            miniserde::ser::Fragment::Map(miniserde::export::Box::new(__Map {state: 0}))
+            miniserde::ser::Fragment::Map(std::prelude::v1::Box::new(__Map {state: 0}))
         }
     } else {
-        quote! {miniserde::ser::Fragment::Str(miniserde::export::Cow::Borrowed(#variant_name))}
+        quote! {miniserde::ser::Fragment::Str(std::borrow::Cow::Borrowed(#variant_name))}
     })
 }
 
@@ -125,8 +125,8 @@ fn serialize_named(
     let (wrapper_impl_generics, wrapper_ty_generics, _) = wrapper_generics.split_for_impl();
     let bound = parse_quote!(miniserde::Serialize);
     let bounded_where_clause = bound::where_clause_with_bound(&input.generics, bound);
-    let cow = quote!(miniserde::export::Cow);
-    let some = quote!(miniserde::export::Some);
+    let cow = quote!(std::borrow::Cow);
+    let some = quote!(std::prelude::v1::Some);
     if let TagType::External = tag_type {
         Ok(quote! {
             use miniserde::Serialize;
@@ -137,21 +137,21 @@ fn serialize_named(
 
             struct __SuperMap #wrapper_impl_generics #where_clause {
                 data: __AsStruct #wrapper_ty_generics,
-                state: miniserde::export::usize,
+                state: usize,
             }
 
             impl #wrapper_impl_generics miniserde::ser::Map for __SuperMap #wrapper_ty_generics #bounded_where_clause {
-                fn next(&mut self) -> miniserde::export::Option<(#cow<miniserde::export::str>, &dyn miniserde::Serialize)> {
+                fn next(&mut self) -> std::prelude::v1::Option<(#cow<core::primitive::str>, &dyn miniserde::Serialize)> {
                     let __state = self.state;
                     self.state = __state + 1;
                     match __state {
                         0 => #some((#cow::Borrowed(#variant_name), &self.data)),
-                        _ => miniserde::export::None,
+                        _ => std::prelude::v1::None,
                     }
                 }
             }
 
-            miniserde::ser::Fragment::Map(miniserde::export::Box::new(__SuperMap {
+            miniserde::ser::Fragment::Map(std::prelude::v1::Box::new(__SuperMap {
                 data: __AsStruct { #(#field_ident),* },
                 state: 0,
             }))
@@ -169,11 +169,11 @@ fn serialize_named(
         Ok(quote! {
             struct __Map #wrapper_impl_generics {
                 #(#field_ident: &'__b #field_type),*,
-                state: miniserde::export::usize,
+                state: usize,
             }
 
             impl #wrapper_impl_generics miniserde::ser::Map for __Map #wrapper_ty_generics #where_clause {
-                fn next(&mut self) -> miniserde::export::Option<(#cow<miniserde::export::str>, &dyn miniserde::Serialize)> {
+                fn next(&mut self) -> std::prelude::v1::Option<(#cow<core::primitive::str>, &dyn miniserde::Serialize)> {
                     let __state = self.state;
                     self.state = __state + 1;
                     match __state {
@@ -184,12 +184,12 @@ fn serialize_named(
                                     self.#field_ident,
                                     ))
                         })*,
-                        _ => miniserde::export::None,
+                        _ => std::prelude::v1::None,
                     }
                 }
             }
 
-            miniserde::ser::Fragment::Map(miniserde::export::Box::new(__Map {
+            miniserde::ser::Fragment::Map(std::prelude::v1::Box::new(__Map {
                 #(#field_ident),*,
                 state: #start,
             }))
@@ -216,14 +216,14 @@ fn serialize_unnamed(
     let bound = parse_quote!(miniserde::Serialize);
     let bounded_where_clause = bound::where_clause_with_bound(&input.generics, bound);
     let index = 0usize..;
-    let ex = quote!(miniserde::export);
+    let ex = quote!(std::prelude::v1);
     let seq = if field_ident.len() == 1 {
         quote! { #(#field_ident.begin())* }
     } else {
         quote! {
             struct __Seq #wrapper_impl_generics #where_clause {
                 #(#field_ident: &'__b #field_type),*,
-                state: miniserde::export::usize,
+                state: usize,
             }
 
             impl #wrapper_impl_generics miniserde::ser::Seq for __Seq #wrapper_ty_generics #bounded_where_clause {
@@ -260,12 +260,12 @@ fn serialize_unnamed(
             }
 
             impl #wrapper_impl_generics miniserde::ser::Map for __SuperMap #wrapper_ty_generics #bounded_where_clause {
-                fn next(&mut self) -> miniserde::export::Option<(#ex::Cow<miniserde::export::str>, &dyn miniserde::Serialize)> {
+                fn next(&mut self) -> std::prelude::v1::Option<(std::borrow::Cow<core::primitive::str>, &dyn miniserde::Serialize)> {
                     if self.state {
-                        return miniserde::export::None;
+                        return std::prelude::v1::None;
                     }
                     self.state = true;
-                    #ex::Some((#ex::Cow::Borrowed(#variant_name), &self.data))
+                    #ex::Some((std::borrow::Cow::Borrowed(#variant_name), &self.data))
                 }
             }
 

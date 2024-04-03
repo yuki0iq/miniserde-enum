@@ -5,7 +5,6 @@ mod bound;
 mod de;
 mod ser;
 
-use std::convert::From;
 use syn::{parse_macro_input, Data, DeriveInput, Error};
 
 #[derive(Debug)]
@@ -27,7 +26,7 @@ pub fn derive_serialize(tokens: proc_macro::TokenStream) -> proc_macro::TokenStr
                 .into()
         }
     };
-    ser::derive(&input, &en)
+    ser::derive(&input, en)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
@@ -43,7 +42,7 @@ pub fn derive_deserialize(tokens: proc_macro::TokenStream) -> proc_macro::TokenS
                 .into()
         }
     };
-    de::derive(&input, &en)
+    de::derive(&input, en)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }

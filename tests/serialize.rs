@@ -3,8 +3,8 @@ use miniserde_enum::Serialize_enum;
 
 #[test]
 fn test_internal() {
-    #[serde(tag = "type")]
     #[derive(Serialize_enum)]
+    #[serde(tag = "type")]
     enum Internal {
         A,
         #[serde(rename = "renamedB")]
@@ -41,8 +41,8 @@ fn test_external() {
 
 #[test]
 fn test_untagged() {
-    #[serde(untagged)]
     #[derive(Serialize_enum)]
+    #[serde(untagged)]
     enum Untagged {
         A(i32),
         #[serde(rename = "renamedB")]
