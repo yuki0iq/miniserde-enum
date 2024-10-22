@@ -99,6 +99,7 @@ pub fn deserialize_internal(
     let ex = quote!(std::prelude::v1);
 
     Ok(quote! {
+        #[expect(non_local_definitions)]
         const _: () = {
             #[repr(transparent)]
             struct __Visitor {
@@ -196,6 +197,7 @@ pub fn deserialize_adjacent(
     let ex = quote!(std::prelude::v1);
 
     Ok(quote! {
+        #[expect(non_local_definitions)]
         const _: () = {
             #[repr(transparent)]
             struct __Visitor {
@@ -290,6 +292,7 @@ pub fn deserialize_external(input: &DeriveInput, enumeration: &DataEnum) -> Resu
     let ex = quote!(std::prelude::v1);
 
     Ok(quote! {
+        #[expect(non_local_definitions)]
         const _: () = {
             struct __Visitor #impl_generics #where_clause {
                 __out: #ex::Option<#ident #ty_generics>,
